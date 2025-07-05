@@ -17,11 +17,14 @@ A fun and simple 2D Car Racing Game built using Python and Pygame, where the pla
 
 
 🧩 Technologies Used
+
 Python 3.7+
+
 Pygame
 
 
 📂 Project Structure
+
 Car-Smash-Game/
 │
 ├── img/                     # All game images
@@ -38,19 +41,30 @@ Car-Smash-Game/
 
 
 ▶️ How to Run
+
 Install pygame (if not already):
+
 pip install pygame
+
 Run the game:
 
 
 python main.py
+
 🎮 Controls
+
 Key	Action
+
 ⬅️ → ⬆️ ⬇️	Move the car
+
 Space	Pause/Resume
+
 Mouse/Space	Start or Restart game
 
 🧑‍💻 Developed By
+
 Vinay Kumar
+
 📧 vinay.nani919@gmail.com
+
 📍 Vijayawada, Andhra Pradesh, India
