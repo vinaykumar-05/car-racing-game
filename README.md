@@ -26,29 +26,17 @@ Pygame
 📂 Project Structure
 
 Car-Smash-Game/
-
 │
-
 ├── img/
-# All game images
 │   ├── car.png
-
 │   ├── back_ground.jpg
-
 │   ├── enemy_car_1.png
-
 │   ├── enemy_car_2.png
-
 │   ├── enemy_car_3.png
-
 │   ├── start_bg.jpg
-
 │   └── pause_icon.jpg
-
 │
-
 ├── main.py   
-# Game source code
 └── README.md                # Project documentation
 
 
