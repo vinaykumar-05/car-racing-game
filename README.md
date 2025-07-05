@@ -1,4 +1,5 @@
-🚗 Car Racing Game 🎮
+# **🚗 Car Racing Game 🎮**
+
 A fun and simple 2D Car Racing Game built using Python and Pygame, where the player avoids enemy cars while the score increases as long as you survive!
 
 🛠️ Features
