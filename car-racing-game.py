@@ -12,21 +12,19 @@ from pathlib import Path
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 ROAD_WIDTH = 360
 CAR_WIDTH, CAR_HEIGHT = 49, 100
-ENEMY_COUNT = 3
-SCORE_INCREMENT = 1
-FONT_NAME = "comicsansms"
-WHITE, BLACK, GRAY, GREEN, RED, BLUE, YELLOW, DARK_BLUE, LIGHT_YELLOW = (
+FONT_NAME = "arial"
+WHITE, BLACK, GRAY, GREEN, RED, DARK_BLUE, LIGHT_YELLOW, DARK_TEXT = (
     (255, 255, 255), (0, 0, 0), (50, 50, 50), (0, 255, 0),
-    (255, 0, 0), (0, 0, 255), (255, 255, 0), (0, 51, 102), (255, 255, 153)
+    (255, 0, 0), (0, 51, 102), (255, 255, 153), (33, 33, 33)
 )
 
 # Init
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Car Racing Game")
 clock = pygame.time.Clock()
 
-# Road track
+# Road positioning
 ROAD_X_START = SCREEN_WIDTH // 2 - ROAD_WIDTH // 2
 TRACKS = [ROAD_X_START + i * (ROAD_WIDTH // 5) for i in range(5)]
 
@@ -37,17 +35,16 @@ img_dir = os.path.join(root_path, "img")
 # Assets
 car_img = pygame.image.load(os.path.join(img_dir, "car.png"))
 road_bg = pygame.image.load(os.path.join(img_dir, "back_ground.jpg"))
-start_bg = pygame.transform.scale(pygame.image.load(os.path.join(img_dir, "start_bg.jpg")), (SCREEN_WIDTH, SCREEN_HEIGHT))
-play_icon = pygame.transform.scale(pygame.image.load(os.path.join(img_dir, "pause_icon.jpg")), (30, 30))
-enemy_imgs = [pygame.image.load(os.path.join(img_dir, f"enemy_car_{i+1}.png")) for i in range(ENEMY_COUNT)]
+start_bg = pygame.transform.scale(pygame.image.load(os.path.join(img_dir, "start_bg.png")), (SCREEN_WIDTH, SCREEN_HEIGHT))
+end_bg = pygame.transform.scale(pygame.image.load(os.path.join(img_dir, "end_bg.webp")), (SCREEN_WIDTH, SCREEN_HEIGHT))
+enemy_imgs = [pygame.image.load(os.path.join(img_dir, f"enemy_car_{i+1}.png")) for i in range(3)]
 
 pause = False
 
 class PlayerCar:
     def __init__(self):
         self.image = car_img
-        self.track_index = 2
-        self.x = TRACKS[self.track_index]
+        self.x = TRACKS[2]
         self.y = SCREEN_HEIGHT - CAR_HEIGHT - 20
         self.move_step = 10
 
@@ -55,11 +52,11 @@ class PlayerCar:
         screen.blit(self.image, (self.x, self.y))
 
     def move_left(self):
-        if self.x > ROAD_X_START:
+        if self.x - self.move_step >= ROAD_X_START:
             self.x -= self.move_step
 
     def move_right(self):
-        if self.x + CAR_WIDTH < ROAD_X_START + ROAD_WIDTH:
+        if self.x + CAR_WIDTH + self.move_step <= ROAD_X_START + ROAD_WIDTH:
             self.x += self.move_step
 
     def move_up(self):
@@ -73,8 +70,9 @@ class PlayerCar:
 class EnemyCar:
     used_tracks = []
 
-    def __init__(self, img):
+    def __init__(self, img, speed):
         self.image = img
+        self.speed = speed
         self.reset()
 
     def reset(self):
@@ -85,12 +83,13 @@ class EnemyCar:
         self.x = random.choice(available_tracks)
         EnemyCar.used_tracks.append(self.x)
         self.y = random.randint(-600, -100)
-        self.speed = 2
 
     def update(self):
         self.y += self.speed
         if self.y > SCREEN_HEIGHT:
             self.reset()
+            return True
+        return False
 
     def draw(self):
         screen.blit(self.image, (self.x, self.y))
@@ -107,9 +106,10 @@ def draw_background(bg_y):
     screen.blit(road_bg, (ROAD_X_START, bg_y))
     screen.blit(road_bg, (ROAD_X_START, bg_y - SCREEN_HEIGHT))
 
-def draw_score(score):
-    font = pygame.font.SysFont("lucidaconsole", 20)
+def draw_hud(score, passed):
+    font = pygame.font.SysFont("lucidaconsole", 20, bold=True)
     screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
+    screen.blit(font.render(f"Cars Passed: {passed}", True, WHITE), (10, 35))
 
 def show_message(text):
     font = pygame.font.SysFont(FONT_NAME, 64, True)
@@ -118,67 +118,73 @@ def show_message(text):
     pygame.display.update()
     sleep(1)
 
+def center_text_in_button(text, font, rect):
+    text_surface = font.render(text, True, WHITE)
+    x = rect.x + (rect.width - text_surface.get_width()) // 2
+    y = rect.y + (rect.height - text_surface.get_height()) // 2
+    screen.blit(text_surface, (x, y))
+
 def home_screen():
     screen.blit(start_bg, (0, 0))
-    font = pygame.font.SysFont(FONT_NAME, 54, True)
-    title = font.render("Car Racing Game", True, GREEN)
-    screen.blit(title, ((SCREEN_WIDTH - title.get_width()) // 2, 100))
+    button_font = pygame.font.SysFont(FONT_NAME, 36, bold=True)
 
-    play_button = pygame.Rect((SCREEN_WIDTH // 2 - 100, 300, 200, 50))
-    pygame.draw.rect(screen, DARK_BLUE, play_button, border_radius=10)
-    screen.blit(play_icon, (play_button.x + 10, play_button.y + 10))
-    font = pygame.font.SysFont(FONT_NAME, 30, True)
-    screen.blit(font.render("Play", True, WHITE), (play_button.x + 50, play_button.y + 10))
+    # Start and Quit buttons at bottom corners
+    start_btn = pygame.Rect(40, SCREEN_HEIGHT - 80, 200, 60)
+    quit_btn = pygame.Rect(SCREEN_WIDTH - 240, SCREEN_HEIGHT - 80, 200, 60)
 
-    font_small = pygame.font.SysFont("lucidaconsole", 16)
-    screen.blit(font_small.render("Done by: Vinay", True, LIGHT_YELLOW), (SCREEN_WIDTH - 160, SCREEN_HEIGHT - 40))
-    screen.blit(font_small.render("vinay.nani919@gmail.com", True, LIGHT_YELLOW), (SCREEN_WIDTH - 250, SCREEN_HEIGHT - 20))
+    pygame.draw.rect(screen, DARK_BLUE, start_btn, border_radius=10)
+    pygame.draw.rect(screen, DARK_BLUE, quit_btn, border_radius=10)
+
+    center_text_in_button("START", button_font, start_btn)
+    center_text_in_button("QUIT", button_font, quit_btn)
 
     pygame.display.update()
-    waiting = True
-    while waiting:
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if play_button.collidepoint(event.pos):
-                    waiting = False
+                if start_btn.collidepoint(event.pos):
+                    return
+                elif quit_btn.collidepoint(event.pos):
+                    pygame.quit(); exit()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    waiting = False
+                if event.key == pygame.K_RETURN:
+                    return
 
-def restart_screen(score):
-    screen.blit(start_bg, (0, 0))
+def restart_screen(score, passed):
+    screen.blit(end_bg, (0, 0))
+
     font = pygame.font.SysFont(FONT_NAME, 48, True)
-    msg = font.render("Game Over!", True, RED)
-    screen.blit(msg, ((SCREEN_WIDTH - msg.get_width()) // 2, 100))
+    label_font = pygame.font.SysFont(FONT_NAME, 28, bold=True)
+    tip_font = pygame.font.SysFont(FONT_NAME, 26, True)
 
-    # ✅ Green colored message
-    tagline = pygame.font.SysFont(FONT_NAME, 26, True).render("Play again and have fun!", True, GREEN)
-    screen.blit(tagline, ((SCREEN_WIDTH - tagline.get_width()) // 2, 180))
+    # Centered messages
+    game_over_text = font.render("Game Over!", True, RED)
+    score_text = label_font.render(f"Score: {score}", True, DARK_TEXT)
+    passed_text = label_font.render(f"Cars Passed: {passed}", True, DARK_TEXT)
+    tip_text = tip_font.render("Play again and have fun!", True, (255, 140, 0))  # Orange
 
-    restart_button = pygame.Rect((SCREEN_WIDTH // 2 - 100, 300, 200, 50))
-    pygame.draw.rect(screen, DARK_BLUE, restart_button, border_radius=10)
-    screen.blit(play_icon, (restart_button.x + 10, restart_button.y + 10))
-    font = pygame.font.SysFont(FONT_NAME, 30, True)
-    screen.blit(font.render("Restart", True, WHITE), (restart_button.x + 50, restart_button.y + 10))
+    screen.blit(game_over_text, ((SCREEN_WIDTH - game_over_text.get_width()) // 2, 80))
+    screen.blit(score_text, ((SCREEN_WIDTH - score_text.get_width()) // 2, 150))
+    screen.blit(passed_text, ((SCREEN_WIDTH - passed_text.get_width()) // 2, 190))
+    screen.blit(tip_text, ((SCREEN_WIDTH - tip_text.get_width()) // 2, 250))
 
-    font_small = pygame.font.SysFont("lucidaconsole", 16)
-    screen.blit(font_small.render("Done by: Vinay", True, LIGHT_YELLOW), (SCREEN_WIDTH - 160, SCREEN_HEIGHT - 60))
-    screen.blit(font_small.render("vinay.nani919@gmail.com", True, LIGHT_YELLOW), (SCREEN_WIDTH - 250, SCREEN_HEIGHT - 40))
+    restart_btn = pygame.Rect(SCREEN_WIDTH // 2 - 100, 320, 200, 60)
+    pygame.draw.rect(screen, DARK_BLUE, restart_btn, border_radius=10)
+    center_text_in_button("RESTART", pygame.font.SysFont(FONT_NAME, 30, True), restart_btn)
 
     pygame.display.update()
-    waiting = True
-    while waiting:
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if restart_button.collidepoint(event.pos):
-                    waiting = False
+                if restart_btn.collidepoint(event.pos):
+                    return
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    waiting = False
+                if event.key == pygame.K_RETURN:
+                    return
 
 def game_loop():
     global pause
@@ -186,23 +192,19 @@ def game_loop():
     enemies = []
     bg_y = 0
     score = 0
-    running = True
+    passed = 0
 
-    while running:
+    while True:
         screen.fill(GRAY)
-        bg_y += 5 if not pause else 0
-        if bg_y >= SCREEN_HEIGHT:
-            bg_y = 0
-
+        bg_y = (bg_y + 5) % SCREEN_HEIGHT
         draw_background(bg_y)
-        draw_score(score)
+        draw_hud(score, passed)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    pause = not pause
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                pause = not pause
 
         keys = pygame.key.get_pressed()
         if not pause:
@@ -211,35 +213,24 @@ def game_loop():
             if keys[pygame.K_UP]: player.move_up()
             if keys[pygame.K_DOWN]: player.move_down()
 
-            if len(enemies) < ENEMY_COUNT and score > len(enemies) * 500:
-                enemies.append(EnemyCar(enemy_imgs[len(enemies) % len(enemy_imgs)]))
+            if len(enemies) < 1 or passed >= len(enemies) * 10:
+                speed = 2 + (passed // 10)
+                enemies.append(EnemyCar(enemy_imgs[len(enemies) % len(enemy_imgs)], speed))
 
             for enemy in enemies:
-                enemy.update()
+                if enemy.update():
+                    passed += 1
+                    score = passed * 10
 
             for enemy in enemies:
                 if enemy.collides_with(player):
                     show_message("Game Over!")
-                    restart_screen(score)
+                    restart_screen(score, passed)
                     return
 
         player.draw()
         for enemy in enemies:
             enemy.draw()
-
-        if not pause:
-            score += SCORE_INCREMENT
-            for e in enemies:
-                if score < 2000:
-                    e.speed = 2
-                elif score < 6000:
-                    e.speed = 4
-                elif score < 12000:
-                    e.speed = 6
-                elif score < 20000:
-                    e.speed = 8
-                else:
-                    e.speed = 10
 
         pygame.display.update()
         clock.tick(60)
